@@ -10,7 +10,7 @@ Visualization for Hilbert Curve [1].
 Demo
 ----
 
-TODO: provide a page link.
+https://hatashiro.github.io/hilbert_curve/
 
 
 License
