@@ -8,8 +8,8 @@ const DECIMAL_RANGE_MAX = 1 - DECIMAL_RANGE_STEP;
 
 const BINARY_STRING_LEN = 14;  // len(mantissa) + 2, because "0.xxx..."
 
-const CELL_INDICES = [[1, 2],
-                      [0, 3]];
+const DEFAULT_CELL_INDICES = [[1, 2],
+                              [0, 3]];
 
 class HilbertCurveApp extends LitElement {
   static styles = css`
@@ -21,26 +21,21 @@ class HilbertCurveApp extends LitElement {
       width: 100%;
     }
 
-    .comp-btn {
+    .level-btn {
       border: 1px solid #444;
       border-radius: 3px;
       padding: 1px 3px;
     }
 
-    .comp-btn:hover {
+    .level-btn:hover {
       cursor: pointer;
       text-decoration: underline;
       background-color: #eee;
     }
 
-    .comp-btn.highlighted {
+    .level-btn.highlighted {
       background-color: #0075ff;
       color: white;
-    }
-
-    .note {
-      margin-top: 7px;
-      font-size: 0.9rem;
     }
 
     .hilbert-cell-container {
@@ -103,19 +98,17 @@ class HilbertCurveApp extends LitElement {
       </fieldset>
 
       <fieldset>
-        <legend>Comprehension</legend>
-        <div>${this.renderComprehension()}</div>
-        <div class="note">
-          <i>Note that the mapping is different from the Hilbert Curve traversal order.</i>
-        </div>
+        <legend>Explanation</legend>
+        <div>${this.renderExplanation()}</div>
       </fieldset>
 
       <div class="hilbert-cell-container">
         <hilbert-curve-cell
-            level="0" maxlevel="${this.level}"
-            highlightedlevel="${this.highlightedLevel}"
+            .level=${0} .maxLevel=${this.level}
+            .highlightedLevel=${this.highlightedLevel}
             .current=${true}
-            mantissa="${this.mantissa}" />
+            .mantissa=${this.mantissa}
+            .cellIndices=${DEFAULT_CELL_INDICES} />
       </div>
     `;
   }
@@ -132,25 +125,25 @@ class HilbertCurveApp extends LitElement {
     this.highlightedLevel = -1;
   }
 
-  renderComprehension() {
-    const comprehensions = [];
+  renderExplanation() {
+    const buttons = [];
     for (let i = 0; i < this.level; i++) {
-      const token = this.mantissa.substring(2 * i, 2 * (i + 1));
+      const binaryIdx = this.mantissa.substring(2 * i, 2 * (i + 1));
 
-      const targetLevel = i + 1;
-      const highlighted = targetLevel == this.highlightedLevel;
+      const level = i + 1;
+      const highlighted = level == this.highlightedLevel;
       const classes = {highlighted};
       const toggleHighlight = () => {
-        this.highlightedLevel = highlighted ? -1 : targetLevel;
+        this.highlightedLevel = highlighted ? -1 : level;
       };
 
-      comprehensions.push(html`
+      buttons.push(html`
         <span
-            class="comp-btn ${classMap(classes)}"
-            @click="${toggleHighlight}">${token}</span>
+            class="level-btn ${classMap(classes)}"
+            @click="${toggleHighlight}">${binaryIdx}</span>
       `);
     }
-    return html`0.${comprehensions}${this.mantissa.substring(2 * this.level)}`;
+    return html`0.${buttons}${this.mantissa.substring(2 * this.level)}`;
   }
 }
 
@@ -209,6 +202,7 @@ class HilbertCurveCell extends LitElement {
     highlightedLevel: {type: Number},
     current: {type: Boolean},
     mantissa: {type: String},
+    cellIndices: {type: Array},
   };
 
   constructor(...args) {
@@ -218,6 +212,7 @@ class HilbertCurveCell extends LitElement {
     this.maxLevel = 0;
     this.highlightedLevel = -1;
     this.mantissa = '';
+    this.cellIndices = [];
   }
 
   render() {
@@ -233,23 +228,29 @@ class HilbertCurveCell extends LitElement {
       for (let row = 0; row < 2; row++) {
         const columns = [];
         for (let col = 0; col < 2; col++) {
-          let current = false;
-          let mantissa = '';
+          let nextCurrent = false;
+          let nextMantissa = '';
+          let nextCellIndices = [];
+
           if (this.current) {
-            const cellIdx = parseInt(this.mantissa.substring(0, 2), 2);
-            current = CELL_INDICES[row][col] == cellIdx;
-            if (current) {
-              mantissa = this.mantissa.substring(2);
+            const binaryCellIdx = this.mantissa.substring(0, 2);
+            const cellIdx = parseInt(binaryCellIdx, 2);
+
+            nextCurrent = this.cellIndices[row][col] == cellIdx;
+            if (nextCurrent) {
+              nextCellIndices = this.rotateIndices(this.cellIndices, cellIdx);
+              nextMantissa = this.mantissa.substring(2);
             }
           }
 
           columns.push(html`
             <div class="hilbert-curve-col">
               <hilbert-curve-cell
-                  level="${this.level + 1}" maxlevel="${this.maxLevel}"
-                  highlightedlevel="${this.highlightedLevel}"
-                  .current=${current}
-                  mantissa="${mantissa}"/>
+                  .level=${this.level + 1} .maxLevel=${this.maxLevel}
+                  .highlightedLevel=${this.highlightedLevel}
+                  .current=${nextCurrent}
+                  .mantissa=${nextMantissa}
+                  .cellIndices=${nextCellIndices} />
             </div>
           `)
         }
@@ -263,6 +264,21 @@ class HilbertCurveCell extends LitElement {
         ${contents}
       </div>
     `;
+  }
+
+
+  rotateIndices(cellIndices, currentCellIdx) {
+    if (currentCellIdx === 1 || currentCellIdx === 2) {
+      return cellIndices;
+    }
+
+    if (currentCellIdx === 0) {
+      return [[cellIndices[1][1], cellIndices[0][1]],
+              [cellIndices[1][0], cellIndices[0][0]]];
+    } else {  // 3
+      return [[cellIndices[0][0], cellIndices[1][0]],
+              [cellIndices[0][1], cellIndices[1][1]]];
+    }
   }
 }
 
